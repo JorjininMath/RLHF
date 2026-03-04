@@ -16,6 +16,7 @@ from transformers import (
 
 from src.data.gsm8k import load_gsm8k
 from src.data.prompts import format_sft_input
+from src.utils.device import resolve_device
 from src.utils.io import generate_run_id
 from src.utils.logging import JsonlMetricsLogger, get_logger
 from src.utils.seed import set_seed
@@ -114,10 +115,8 @@ def run_sft(cfg: dict) -> str:
     logger.info(f"SFT | run_id={run_id} | model={cfg['model_name']}")
 
     # Resolve device
-    if cfg.get("device") == "cpu":
-        dtype = torch.float32
-    else:
-        dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+    _, dtype = resolve_device(cfg.get("device"))
+    device = cfg.get("device") or "auto"
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
@@ -156,7 +155,7 @@ def run_sft(cfg: dict) -> str:
     train_ds = _build_sft_dataset(train_ds, tokenizer, cfg)
     eval_ds  = _build_sft_dataset(eval_ds,  tokenizer, cfg)
 
-    use_bf16 = (dtype == torch.bfloat16)
+    use_bf16 = (dtype == torch.bfloat16) and device != "mps"
     training_args = TrainingArguments(
         output_dir=str(output_path),
         num_train_epochs=cfg.get("num_epochs", 3),

@@ -12,6 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.data.gsm8k import load_gsm8k
 from src.data.prompts import format_chat_prompt
 from src.eval.metrics import compute_accuracy, compute_avg_length
+from src.utils.device import resolve_device
 from src.utils.io import generate_run_id
 from src.utils.logging import JsonlMetricsLogger, get_logger
 from src.utils.seed import set_seed
@@ -104,10 +105,7 @@ def run_evaluation(cfg: dict) -> dict:
     run_id: str = cfg["run_id"]
     metrics_logger = JsonlMetricsLogger(cfg["log_dir"], "eval", run_id)
 
-    if cfg.get("device") == "cpu" or not torch.cuda.is_available():
-        device, dtype = "cpu", torch.float32
-    else:
-        device, dtype = "cuda", torch.bfloat16
+    device, dtype = resolve_device(cfg.get("device"))
 
     dataset = load_gsm8k("test", n=cfg.get("n_eval"), cache_dir=cfg.get("cache_dir", "data/cache"))
     base_name: str = cfg["model_name"]

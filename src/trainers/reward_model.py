@@ -12,6 +12,7 @@ from transformers import AutoModel, AutoTokenizer
 
 from src.data.gsm8k import load_gsm8k
 from src.data.prompts import format_sft_input
+from src.utils.device import resolve_device
 from src.utils.io import load_jsonl
 from src.utils.logging import JsonlMetricsLogger, get_logger
 from src.utils.seed import set_seed
@@ -184,9 +185,7 @@ def run_reward_model(cfg: dict) -> str:
     tokenizer = AutoTokenizer.from_pretrained(rm_backbone)
     model = RewardModel(rm_backbone)
 
-    device = (
-        "cuda" if torch.cuda.is_available() and cfg.get("device") != "cpu" else "cpu"
-    )
+    device, _ = resolve_device(cfg.get("device"))
     model = model.to(device)
 
     # Train/val split (90/10)

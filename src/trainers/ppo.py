@@ -26,6 +26,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.data.gsm8k import load_gsm8k
 from src.data.prompts import format_chat_prompt
 from src.trainers.reward_model import load_reward_model, score_response
+from src.utils.device import resolve_device
 from src.utils.logging import JsonlMetricsLogger, get_logger
 from src.utils.seed import set_seed
 
@@ -87,8 +88,7 @@ def run_ppo(cfg: dict) -> str:
         raise FileNotFoundError(f"RM checkpoint not found: '{rm_checkpoint}'")
 
     # ── Device / dtype ────────────────────────────────────────────────────────
-    device = "cpu" if (cfg.get("device") == "cpu" or not torch.cuda.is_available()) else "cuda"
-    dtype  = torch.float32 if device == "cpu" else torch.bfloat16
+    device, dtype = resolve_device(cfg.get("device"))
     logger.info(f"PPO | run_id={run_id} | device={device}")
 
     # ── Tokenizer ─────────────────────────────────────────────────────────────
