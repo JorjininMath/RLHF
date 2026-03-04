@@ -1,0 +1,12 @@
+stage: ppo
+# Filled at runtime by run_all.sh:
+sft_checkpoint: null
+rm_checkpoint: null
+batch_size: 16
+mini_batch_size: 4
+gradient_accumulation_steps: 1
+ppo_epochs: 4
+learning_rate: 1.0e-5
+kl_coef: 0.1
+max_new_tokens: 128
+n_ppo_steps: 200            # total PPO update steps

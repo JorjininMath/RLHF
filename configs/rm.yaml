@@ -1,0 +1,12 @@
+stage: rm
+rm_model_name: distilbert-base-uncased
+rm_data_path: data/rm_pairs.jsonl
+max_length: 256
+batch_size: 16
+learning_rate: 2.0e-5
+num_epochs: 3
+# If rm_pairs.jsonl is absent and generate_rm_data is true,
+# pairs are sampled from sft_checkpoint.
+generate_rm_data: false
+n_rm_pairs: 400
+temperature: 0.8

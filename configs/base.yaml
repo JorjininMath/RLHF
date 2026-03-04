@@ -1,0 +1,14 @@
+# Base config — all stages inherit these defaults
+seed: 42
+device: auto                    # auto | cpu | cuda
+model_name: Qwen/Qwen2.5-0.5B-Instruct
+output_dir: outputs/
+log_dir: logs/
+cache_dir: data/cache/
+wandb_disabled: true
+
+lora:
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules: null          # null = auto-detect from model family

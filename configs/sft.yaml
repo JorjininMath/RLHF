@@ -1,0 +1,9 @@
+stage: sft
+dataset: gsm8k
+n_train: 1000
+n_eval: 100
+max_length: 512
+batch_size: 4
+gradient_accumulation_steps: 4
+learning_rate: 2.0e-4
+num_epochs: 3

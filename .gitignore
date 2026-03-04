@@ -1,0 +1,17 @@
+# Personal notes (not for public repo)
+docs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# Editor
+.DS_Store

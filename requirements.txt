@@ -1,0 +1,12 @@
+torch>=2.2,<2.5
+transformers>=4.40,<4.46
+trl>=0.9,<1.0
+peft>=0.10,<0.14
+datasets>=2.19,<2.22
+accelerate>=0.30,<0.36
+pyyaml>=6.0
+jinja2>=3.1
+numpy>=1.26
+scipy>=1.13
+packaging>=24.0
+tqdm>=4.66

@@ -1,0 +1,7 @@
+stage: eval
+n_eval: 200
+max_new_tokens: 128
+batch_size: 8
+# checkpoints filled at runtime:
+sft_checkpoint: null
+ppo_checkpoint: null
