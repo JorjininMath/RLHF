@@ -262,7 +262,7 @@ def load_reward_model(rm_checkpoint: str) -> tuple[RewardModel, Any]:
         rm_cfg = json.load(f)
     tokenizer = AutoTokenizer.from_pretrained(rm_checkpoint)
     model = RewardModel(rm_cfg["rm_model_name"])
-    model.load_state_dict(torch.load(Path(rm_checkpoint) / "rm_model.pt", map_location="cpu"))
+    model.load_state_dict(torch.load(Path(rm_checkpoint) / "rm_model.pt", map_location="cpu", weights_only=True))
     model.eval()
     return model, tokenizer
 

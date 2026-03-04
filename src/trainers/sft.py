@@ -168,7 +168,7 @@ def run_sft(cfg: dict) -> str:
         warmup_ratio=0.03,
         lr_scheduler_type="cosine",
         logging_steps=10,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         fp16=False,
