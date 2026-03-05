@@ -113,7 +113,7 @@ def run_ppo(cfg: dict) -> str:
         cfg["model_name"], torch_dtype=dtype, trust_remote_code=True
     )
     ref_model = PeftModel.from_pretrained(base_ref, sft_checkpoint)
-    ref_model.to(device).eval()
+    ref_model.to("cpu").eval()   # keep frozen ref on CPU to save MPS/GPU memory
     for p in ref_model.parameters():
         p.requires_grad_(False)
 
@@ -184,9 +184,9 @@ def run_ppo(cfg: dict) -> str:
             # Policy: gradients flow
             policy_lp = _token_log_probs(policy, output_ids, response_start)
 
-            # Reference: no gradient
+            # Reference: no gradient; ref_model lives on CPU
             with torch.no_grad():
-                ref_lp = _token_log_probs(ref_model, output_ids, response_start)
+                ref_lp = _token_log_probs(ref_model, output_ids.cpu(), response_start).to(device)
 
             # ── Loss = REINFORCE + KL ─────────────────────────────────────────
             #   −r_RM · Σ log π_θ  →  push toward high-reward responses

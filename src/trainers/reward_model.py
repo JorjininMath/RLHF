@@ -160,16 +160,16 @@ def run_reward_model(cfg: dict) -> str:
 
     # ── Load or generate pairs ──────────────────────────────────────────────
     rm_data_path = cfg.get("rm_data_path", "data/rm_pairs.jsonl")
-    if Path(rm_data_path).exists():
-        pairs = load_jsonl(rm_data_path)
-        logger.info(f"Loaded {len(pairs)} RM pairs from {rm_data_path}")
-    elif cfg.get("generate_rm_data") and cfg.get("sft_checkpoint"):
+    if cfg.get("generate_rm_data") and cfg.get("sft_checkpoint"):
         pairs = _generate_rm_pairs(cfg["sft_checkpoint"], cfg)
         Path(rm_data_path).parent.mkdir(parents=True, exist_ok=True)
         with open(rm_data_path, "w") as f:
             for p in pairs:
                 f.write(json.dumps(p) + "\n")
         logger.info(f"Saved {len(pairs)} pairs to {rm_data_path}")
+    elif Path(rm_data_path).exists():
+        pairs = load_jsonl(rm_data_path)
+        logger.info(f"Loaded {len(pairs)} RM pairs from {rm_data_path}")
     else:
         raise FileNotFoundError(
             f"No RM data at '{rm_data_path}'. "
