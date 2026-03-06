@@ -39,6 +39,7 @@ def _token_log_probs(
     model: torch.nn.Module,
     input_ids: torch.Tensor,
     response_start: int,
+    attention_mask: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """
     Compute per-token log probabilities for the *response* portion of input_ids.
@@ -52,7 +53,11 @@ def _token_log_probs(
         Tensor of shape (n_response_tokens,) — log P(token_t | context)
     """
     with torch.set_grad_enabled(model.training):
-        logits = model(input_ids).logits               # (1, T, V)
+        logits = model(
+            input_ids,
+            attention_mask=attention_mask,
+            use_cache=False,
+        ).logits                                       # (1, T, V)
 
     # Shift: logits[t] predicts token[t+1]
     shift_logits  = logits[:, response_start - 1 : -1, :]   # (1, R, V)
@@ -145,22 +150,25 @@ def run_ppo(cfg: dict) -> str:
 
         step_reward = 0.0
         step_kl     = 0.0
-        step_loss   = torch.zeros(1, device=device)
+        step_loss_val = 0.0
 
         indices = [(step * batch_size + i) % n_examples for i in range(batch_size)]
 
         for idx in indices:
             example = dataset[idx]
             prompt  = format_chat_prompt(example["question"], tokenizer)
-            input_ids = tokenizer(
+            encoded = tokenizer(
                 prompt, return_tensors="pt", truncation=True, max_length=256,
-            ).input_ids.to(device)                    # (1, L_prompt)
+            )
+            input_ids = encoded.input_ids.to(device)                         # (1, L_prompt)
+            input_attention_mask = encoded.attention_mask.to(device)         # (1, L_prompt)
             response_start = input_ids.shape[1]
 
             # Generate response — sampling, no grad
             with torch.no_grad():
                 output_ids = policy.generate(
                     input_ids,
+                    attention_mask=input_attention_mask,
                     max_new_tokens=max_new,
                     do_sample=True,
                     temperature=0.9,
@@ -168,6 +176,10 @@ def run_ppo(cfg: dict) -> str:
                 )                                     # (1, L_prompt + L_resp)
 
             if output_ids.shape[1] <= response_start:
+                del encoded
+                del input_ids
+                del input_attention_mask
+                del output_ids
                 continue   # empty response, skip
 
             response_text = tokenizer.decode(
@@ -182,24 +194,52 @@ def run_ppo(cfg: dict) -> str:
 
             # ── Token log-probs ───────────────────────────────────────────────
             # Policy: gradients flow
-            policy_lp = _token_log_probs(policy, output_ids, response_start)
+            output_attention_mask = torch.ones_like(output_ids, dtype=torch.long, device=output_ids.device)
+            policy_lp = _token_log_probs(
+                policy,
+                output_ids,
+                response_start,
+                attention_mask=output_attention_mask,
+            )
 
             # Reference: no gradient; ref_model lives on CPU
             with torch.no_grad():
-                ref_lp = _token_log_probs(ref_model, output_ids.cpu(), response_start).to(device)
+                output_ids_cpu = output_ids.cpu()
+                output_attention_mask_cpu = output_attention_mask.cpu()
+                ref_lp = _token_log_probs(
+                    ref_model,
+                    output_ids_cpu,
+                    response_start,
+                    attention_mask=output_attention_mask_cpu,
+                ).to(device)
 
             # ── Loss = REINFORCE + KL ─────────────────────────────────────────
             #   −r_RM · Σ log π_θ  →  push toward high-reward responses
             #   + β · Σ(log π_θ − log π_ref)  →  stay close to SFT
             kl        = (policy_lp - ref_lp.detach()).sum()
             reinforce = -torch.tensor(r_rm, device=device, dtype=torch.float32) * policy_lp.sum()
-            loss_i    = (reinforce + beta * kl) / batch_size
+            loss_i = (reinforce + beta * kl) / batch_size
+            loss_i.backward()
 
-            step_loss   = step_loss + loss_i
+            step_loss_val += loss_i.detach().item()
             step_reward += r_rm
             step_kl     += kl.detach().item()
 
-        step_loss.backward()
+            # Release per-sample temporaries early to avoid MPS memory spikes.
+            del encoded
+            del input_ids
+            del input_attention_mask
+            del output_attention_mask
+            del output_ids_cpu
+            del output_attention_mask_cpu
+            del policy_lp
+            del ref_lp
+            del output_ids
+            del loss_i
+            del kl
+            del reinforce
+            if device == "mps" and step % 20 == 0:
+                torch.mps.empty_cache()
         torch.nn.utils.clip_grad_norm_(
             [p for p in policy.parameters() if p.requires_grad], max_norm=1.0
         )
@@ -212,12 +252,12 @@ def run_ppo(cfg: dict) -> str:
             "step":        step,
             "mean_reward": mean_reward,
             "mean_kl":     mean_kl,
-            "loss":        step_loss.item(),
+            "loss":        step_loss_val,
         })
         if step % max(1, n_steps // 10) == 0:
             logger.info(
                 f"PPO step {step}/{n_steps} | "
-                f"reward={mean_reward:.4f}  kl={mean_kl:.4f}  loss={step_loss.item():.4f}"
+                f"reward={mean_reward:.4f}  kl={mean_kl:.4f}  loss={step_loss_val:.4f}"
             )
 
     # ── Save ──────────────────────────────────────────────────────────────────

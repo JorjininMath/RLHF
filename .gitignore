@@ -15,3 +15,15 @@ build/
 
 # Editor
 .DS_Store
+
+# Local RLHF interview sandbox (not for Git)
+rlhf_minimal_sandbox/
+
+# Runtime outputs (large files, not for Git)
+data/
+logs/
+outputs/
+train.log
+
+# CV / personal files
+CV_en_*
